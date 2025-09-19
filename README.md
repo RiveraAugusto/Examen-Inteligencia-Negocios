@@ -1,0 +1,2 @@
+# Examen-Inteligencia-Negocios
+Examen
