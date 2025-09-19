@@ -1,0 +1,46 @@
+# .github/workflows/diagram-infra.yml
+
+
+name: 'Generar diagrama de infraestructura'
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'terraform/main.tf'
+      - '.github/workflows/diagram-infra.yml'
+
+jobs:
+  diagram-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Instalar Graphviz y Terraform Visual
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+          npm install -g @lvkdotsh/terraform-visual
+
+      - name: Generar diagrama de infraestructura
+        run: |
+          terraform-visual --input terraform/main.tf --output infra-diagram.svg
+
+      - name: Subir diagrama al repositorio
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'infra-diagram.svg'
+          message: 'Agregar diagrama de infraestructura generado automáticamente'
+
+      - name: Incluir diagrama en README.md
+        run: |
+          if ! grep -q '![](infra-diagram.svg)' README.md; then
+            echo '![](infra-diagram.svg)' >> README.md
+          fi
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add README.md
+          git commit -m "Actualizar README con diagrama de infraestructura" || echo "No hay cambios para commitear"
+          git push

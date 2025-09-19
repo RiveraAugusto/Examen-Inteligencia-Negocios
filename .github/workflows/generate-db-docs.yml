@@ -1,0 +1,64 @@
+# .github/workflows/generate-db-docs.yml
+
+
+name: 'Generar diagrama ER y diccionario'
+
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/load_data.py'
+      - '.github/workflows/generate-db-docs.yml'
+
+jobs:
+  generate-db-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install eralchemy[graphviz] psycopg2-binary pandas
+
+      - name: Generar diagrama ER y diccionario
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: |
+          eralchemy -i postgresql://${{ secrets.DB_USER }}:${{ secrets.DB_PASSWORD }}@${{ secrets.DB_HOST }}/${{ secrets.DB_NAME }} -o er_diagram.png
+          echo '| Campo | Tipo de Dato | Descripción |' > db_dictionary.md
+          echo '|---|---|---|' >> db_dictionary.md
+          echo '| Airline | VARCHAR(255) | Nombre de la aerolínea |' >> db_dictionary.md
+          echo '| Date_of_Journey | DATE | Fecha del vuelo |' >> db_dictionary.md
+          echo '| Source | VARCHAR(255) | Origen del vuelo |' >> db_dictionary.md
+          echo '| Destination | VARCHAR(255) | Destino del vuelo |' >> db_dictionary.md
+          echo '| Route | VARCHAR(255) | La ruta completa del vuelo |' >> db_dictionary.md
+          echo '| Dep_Time | VARCHAR(255) | Hora de despegue |' >> db_dictionary.md
+          echo '| Arrival_Time | VARCHAR(255) | Hora de llegada |' >> db_dictionary.md
+          echo '| Duration | VARCHAR(255) | Duración total del vuelo |' >> db_dictionary.md
+          echo '| Total_Stops | VARCHAR(255) | Número de paradas intermedias |' >> db_dictionary.md
+          echo '| Additional_Info | TEXT | Información adicional sobre el vuelo |' >> db_dictionary.md
+          echo '| Price | INT | Precio del vuelo en Rupias Indias |' >> db_dictionary.md
+          echo '![Diagrama ER](er_diagram.png)' > BD.md
+          cat db_dictionary.md >> BD.md
+
+      - name: Actualizar BD.md y enlazar en README.md
+        run: |
+          if ! grep -q '[BD.md](BD.md)' README.md; then
+            echo '\n[Documentación de la Base de Datos](BD.md)' >> README.md
+          fi
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add BD.md README.md er_diagram.png db_dictionary.md
+          git commit -m "Actualizar documentación de la base de datos" || echo "No hay cambios para commitear"
+          git push
